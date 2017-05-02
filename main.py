@@ -7,6 +7,7 @@ data = reader.read_data()
 n_samples = data.shape[0]
 data_idx = reader.read_data_idx()
 data_idx = data_idx[:n_samples]
+data_idx = np.squeeze(data_idx)
 
 # Extract user, movie, etc. data from dataframe
 user_id, movie_id, date_id, rating = data[:,0], data[:,1], data[:,2], data[:,3]
@@ -21,8 +22,7 @@ print "*** Time ('get base data') = ", time.time() - t0, " seconds ***"
 
 print "Number of samples for BASE case: ", base_user_id.shape
 # Could just set this manually given the number of users/movies rather than looping...
-M, N = [max(x)+1 for x in base_user_id, base_movie_id]
-K = 20
+M, N = [np.amax(x) for x in base_user_id, base_movie_id]
 print "M, N, K = ", M, N, K
 
 U, V = \
