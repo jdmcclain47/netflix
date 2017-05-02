@@ -75,7 +75,7 @@ def run( size_M, size_N, size_K, eta, reg, user_id, movie_id, rating, eps, max_e
             # Move this movie by this gradient amount
             V[:,_m] = grad_V(Ui, Yij, Vj, reg, eta)
         err = get_err(U,V,user_id,movie_id,rating)
-        if i_epoch == 1:
+        if i_epoch == 0:
             err1 = err
             tol = abs(err1 - err0) * eps
             print "Stopping condition tol < (eps) * (err1 - err0) [err0,err1,err] = %.12g %.12g %.12g" % (
