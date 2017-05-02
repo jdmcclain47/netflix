@@ -20,7 +20,7 @@ def read_data():
     else:
         import pandas as pd
         t0 = time.time()
-        data = pd.read_csv(root + fileroot + filename, delimiter=' ', dtype=np.int32)
+        data = pd.read_csv(root + fileroot + filename, delimiter=' ', dtype=np.int32, header=None)
         print "*** Time ('read data pandas') = ", time.time() - t0, " seconds ***"
         data = np.asarray(data, dtype=np.int32)
         data.tofile(root + fileroot + filename + "_np")
@@ -50,7 +50,7 @@ def read_data_idx():
     else:
         import pandas as pd
         t0 = time.time()
-        data_idx = pd.read_csv(root + fileroot + filename, delimiter=' ', dtype=np.int8)
+        data_idx = pd.read_csv(root + fileroot + filename, delimiter=' ', dtype=np.int8, header=None)
         print "*** Time ('idx read pandas') = ", time.time() - t0, " seconds ***"
         data_idx = np.asarray(data_idx, dtype=np.int8)
         data_idx.tofile(root + fileroot + filename + "_np")
