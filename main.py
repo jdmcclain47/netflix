@@ -26,7 +26,7 @@ K = 10
 print "M, N, K = ", M, N, K
 
 run_svd.run( M, N, K,
-             eta=1e-3,
+             eta=0.003,
              reg=1e-10,
              user_id  = base_user_id,
              movie_id = base_movie_id,
