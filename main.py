@@ -10,6 +10,9 @@ data_idx = data_idx[:n_samples]
 
 # Extract user, movie, etc. data from dataframe
 user_id, movie_id, date_id, rating = data[:,0], data[:,1], data[:,2], data[:,3]
+# Easier to use rating as a float to avoid implicit conversion
+rating = rating.astype(np.float)
+data = None
 
 t0 = time.time()
 base_idx = data_idx == reader.BASE
