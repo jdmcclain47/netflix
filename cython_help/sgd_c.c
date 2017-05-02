@@ -52,3 +52,35 @@ double c_multiply(int n_samples,
     }
     return result;
 }
+
+double c_err(int n_samples,
+             long* u, 
+             long* v, 
+             double* r,
+             double* Umat,
+             double* Vmat,
+             int m,
+             int n,
+             int k
+        ){
+    double err = 0.0;
+    double uvdot;
+    long user, movie;
+    double Yij;
+
+    for (int i = 0; i < n_samples; ++i){
+        user   = u[i];
+        movie  = v[i];
+        Yij = r[i];
+        uvdot = 0.0 ;
+        for (int j = 0; j < k; ++j){
+            uvdot += Umat[user*k + j]*Vmat[movie*k + j];
+        }
+        uvdot -= Yij;
+        uvdot *= uvdot;
+        err += uvdot;
+    }
+    err *= 0.5;
+    return err;
+}
+
