@@ -11,6 +11,8 @@ data_idx = np.squeeze(data_idx)
 
 # Extract user, movie, etc. data from dataframe
 user_id, movie_id, date_id, rating = data[:,0], data[:,1], data[:,2], data[:,3]
+user_id  -= 1
+movie_id -= 1
 # Easier to use rating as a float to avoid implicit conversion
 rating = rating.astype(np.float)
 data = None
