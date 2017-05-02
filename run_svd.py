@@ -64,23 +64,26 @@ def run( size_M, size_N, size_K, eta, reg, user_id, movie_id, rating, eps, max_e
 
     for i_epoch in range(n_epochs):
         # shuffle data
+        t0 = time.time()
         shuffler = np.random.permutation(n_samples)[:n_samples_per_epoch]
         _user_id, _movie_id, _rating = [x[shuffler] for x in user_id, movie_id, rating]
+        print "*** Time ('shuffing data') = ", time.time() - t0, " seconds ***"
 
         # Loop over shuffled data
+        t0 = time.time()
         for _u,_m,_r in zip(_user_id,_movie_id,_rating):
             Ui, Vj, Yij = U[_u,:], V[:,_m], _r
             # Move this user by this gradient amount
             U[_u,:] = grad_U(Ui, Yij, Vj, reg, eta)
             # Move this movie by this gradient amount
             V[:,_m] = grad_V(Ui, Yij, Vj, reg, eta)
+        print "*** Time ('epoch time') = ", time.time() - t0, " seconds ***"
         err = get_err(U,V,user_id,movie_id,rating)
         if i_epoch == 0:
             err1 = err
-            tol = abs(err1 - err0) * eps
-            print "Stopping condition tol < (eps) * (err1 - err0) [err0,err1,err] = %.12g %.12g %.12g" % (
-                    err0, err1, tol)
+            print "Stopping condition err - err0 < (eps)*(err0 - err1) [eps,err0,err1] = %.12g %.12g %.12g" % (
+                    eps, err0, err1 )
         print "Current error = %.12g" % err
-        if err < tol:
+        if abs(err-err0)/abs(err0-err1) < eps:
             print "Stopping criterion met! Exiting"
             return
