@@ -18,7 +18,6 @@ def grad_a(Ui, Yij, Vj, reg, eta, mu=0.0, ai=0.0, bj=0.0):
 def grad_b(Ui, Yij, Vj, reg, eta, mu=0.0, ai=0.0, bj=0.0):
     return (1-reg*eta)*bj + eta * Yij_diff(Ui,Yij,Vj,mu,ai,bj)
 
-#@profile
 def get_err(U, V, user_id, movie_id, rating):
     t0 = time.time()
     batch_size = int(1e7)
@@ -55,7 +54,6 @@ def get_err(U, V, user_id, movie_id, rating):
     print "*** Time ('get err') = ", time.time() - t0, " seconds ***"
     return err / n_samples
 
-#@profile
 def run( size_M, size_N, size_K, eta, reg, user_id, movie_id, rating, eps, max_epochs):
     '''Runs a standard SGD
 
@@ -74,14 +72,16 @@ def run( size_M, size_N, size_K, eta, reg, user_id, movie_id, rating, eps, max_e
     # Initialize variables
     U = np.random.random((size_M,size_K))
     V = np.random.random((size_N,size_K))
+    U /= size_K
+    V /= size_K
+
+    old_U = U.copy()
+    old_V = V.copy()
 
     n_samples = rating.shape[0]
     n_epochs = max_epochs
 
-    #data_triple = np.dstack((user_id, movie_id, rating))
-    #data_triple = np.reshape(data_triple, (n_samples,3))
     _user_id, _movie_id, _rating = [user_id.copy(), movie_id.copy(), rating.copy()]
-    #_user_id, _movie_id, _rating = _user_id[:n_samples], _movie_id[:n_samples], _rating[:n_samples]
 
     print "Starting..."
     err0 = get_err(U,V,user_id,movie_id,rating)
@@ -93,13 +93,14 @@ def run( size_M, size_N, size_K, eta, reg, user_id, movie_id, rating, eps, max_e
 
     for i_epoch in range(n_epochs):
 
-        eta = eta / (1. + 0.005*i_epoch)**(2./3)
+        #eta = eta / (1. + eta*i_epoch)**(2./3)
 
         # Shuffle data
         if i_epoch % n_shuffle == 0:
             print "Shuffling data..."
             t0 = time.time()
-            [np.random.shuffle(x) for x in _user_id, _movie_id, _rating]
+            shuffle = np.random.permutation(n_samples)
+            _user_id, _movie_id, _rating = [x[shuffle] for x in _user_id, _movie_id, _rating]
             print "*** Time ('shuffing data') = ", time.time() - t0, " seconds ***"
 
         t0 = time.time()
@@ -131,6 +132,15 @@ def run( size_M, size_N, size_K, eta, reg, user_id, movie_id, rating, eps, max_e
         if abs(err-old_err)/abs(err0-err1) < eps:
             print "Stopping criterion met! Exiting"
             return U, V
+
+        # If we don't decrease the error (i.e. our new error is higher),
+        # then only move 20% in that direction
+        if old_err < err:
+            U = 0.2*U + 0.8*old_U
+            V = 0.2*V + 0.8*old_V
+        # Otherwise, we decrease the eta (stepsize) by 10%
+        else:
+            eta = 0.9*eta
 
         old_err = err
     print "Failed to converge! Max iterations reached."
