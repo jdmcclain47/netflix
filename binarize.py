@@ -36,7 +36,7 @@ tobin = [("data/mu/all.dta", 4 * "i"), ("data/mu/all.idx", "i"), ("data/mu/qual.
 size = 2048
 
 for fname, dtype in tobin:
-    with open(fname + ".bin", "wb") as fbin:
+    with open(fname + "_np", "wb") as fbin:
         pass
 
     i = 0
@@ -57,5 +57,5 @@ for fname, dtype in tobin:
                     print i * size
             line = f.readline()
 
-        with open(fname + ".bin", "ab") as fbin:
+        with open(fname + "_np", "ab") as fbin:
             fbin.write(struct.pack(count * dtype, *buf))
