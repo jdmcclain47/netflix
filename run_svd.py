@@ -54,7 +54,7 @@ def get_err(U, V, user_id, movie_id, rating):
     print "*** Time ('get err') = ", time.time() - t0, " seconds ***"
     return err / n_samples
 
-def run( size_M, size_N, size_K, eta, reg, user_id, movie_id, rating, eps, max_epochs):
+def run( size_M, size_N, size_K, eta, reg, user_id, movie_id, rating, eps, max_epochs, mu = 0.0):
     '''Runs a standard SGD
 
     size_M     = number of users
@@ -101,17 +101,20 @@ def run( size_M, size_N, size_K, eta, reg, user_id, movie_id, rating, eps, max_e
             t0 = time.time()
             shuffle = np.random.permutation(n_samples)
             _user_id, _movie_id, _rating = [x[shuffle] for x in _user_id, _movie_id, _rating]
-            print "*** Time ('shuffing data') = ", time.time() - t0, " seconds ***"
+            print "*** Time ('shuffling data') = ", time.time() - t0, " seconds ***"
+
+        #sgd_py.shuffle(_user_id, _movie_id, _rating)
 
         t0 = time.time()
         # Loop over shuffled data
-        sgd_py.multiply(_user_id,
+        sgd_py.multiply_parallel(_user_id,
                         _movie_id,
                         _rating,
                         U,
                         V,
                         reg,
                         eta)
+
         #for _u, _m, _r in zip(_user_id, _movie_id, _rating):
         #    Ui, Vj, Yij = U[_u,:], V[_m,:], _r
         #    # Move this user by this gradient amount

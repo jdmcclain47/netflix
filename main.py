@@ -1,6 +1,7 @@
 import reader
 import numpy as np
 import run_svd
+import model_helper as mh
 import time
 import sys
 
@@ -8,34 +9,31 @@ import sys
 K = int(sys.argv[1])
 reg = int(sys.argv[2])
 
-data = reader.read_data()
-n_samples = data.shape[0]
-data_idx = reader.read_data_idx()
-data_idx = data_idx[:n_samples]
-data_idx = np.squeeze(data_idx)
+# Load full data (for filebase: use "all" for all data, "10000000" for a smaller reduced sample)
+#filebase="10000000"
+filebase="all"
+user_id, movie_id, date_id, rating, data_idx = reader.get_umdr_and_idx(filebase)
+print "Number of total samples: ", user_id.shape
+M, N = [np.amax(x)+1 for x in user_id, movie_id]
+print "M, N = ", M, N
 
-# Extract user, movie, etc. data from dataframe
-user_id, movie_id, date_id, rating = data[:,0], data[:,1], data[:,2], data[:,3]
-user_id  -= 1
-movie_id -= 1
-# Easier to use rating as a float to avoid implicit conversion
-rating = rating.astype(np.float)
-data = None
+# Define for saving/loading data
+suffix = "_K%d_reg%d.dat" % (K,reg)
+########################################
+#                                      #
+# Train data                           #
+#                                      #
+########################################
 
-t0 = time.time()
-base_idx = data_idx == reader.BASE
-base_user_id, base_movie_id, base_rating = [x[base_idx] for x in user_id, movie_id, rating]
-print "*** Time ('get base data') = ", time.time() - t0, " seconds ***"
-
+# Get training data
+base_user_id, base_movie_id, base_data_id, base_rating = \
+        reader.get_base_umdr(user_id, movie_id, date_id, rating, data_idx)
 print "Number of samples for BASE case: ", base_user_id.shape
-# Could just set this manually given the number of users/movies rather than looping...
-# Add 1 since we made the id's have 0-indexing
-M, N = [np.amax(x)+1 for x in base_user_id, base_movie_id]
-print "M, N, K = ", M, N, K
 
+# Train model
 U, V = \
 run_svd.run( M, N, K,
-             eta=0.003,
+             eta=0.004,
              reg=10**(reg),
              user_id  = base_user_id,
              movie_id = base_movie_id,
@@ -43,50 +41,69 @@ run_svd.run( M, N, K,
              eps=1e-6,
              max_epochs = 50)
 
-suffix = "_K%d_reg%d.dat" % (M,N,K,reg)
-U.tofile("U" + suffix)
-V.tofile("V" + suffix)
+# Save model from run
+mh.save_um_data(suffix, U, V)
 
-# TODO : the following should probably go elsewhere... but I'll leave it here for now
-# Make qual set
-t0 = time.time()
-qual_idx = data_idx == reader.QUAL
-qual_user_id, qual_movie_id, qual_rating = [x[qual_idx] for x in user_id, movie_id, rating]
-print "*** Time ('get qual data') = ", time.time() - t0, " seconds ***"
+########################################
+#                                      #
+# Get validation error                 #
+#                                      #
+########################################
 
-print "Number of samples for qual case: ", qual_user_id.shape
-#suffix = "_K%d_reg%d.dat" % (M,N,K,reg)
-U = np.fromfile("U" + suffix)
-V = np.fromfile("V" + suffix)
-U = np.reshape(U, (M,K))
-V = np.reshape(V, (N,K))
+# Make validation
+valid_user_id, valid_movie_id, valid_data_id, valid_rating = \
+        reader.get_valid_umdr(user_id, movie_id, date_id, rating, data_idx)
+print "Number of samples for valid case: ", valid_user_id.shape
 
-def predict(user_id, movie_id, U, V):
-    n_samples = user_id.shape[0]
-    r = np.empty((n_samples,))
-    for i in range(n_samples):
-        u, m = user_id[i], movie_id[i]
-        # TODO: define the following in maybe some sort of model class so we
-        # don't have to set r_pred for every new model used...
-        r_pred = np.dot(U[u,:],V[m,:])
-        r[i] = r_pred
-    return r
+# Load data in
+U, V = mh.load_um_data(suffix = "_K%d_reg%d.dat" % (K,reg), U_shape=(M,K), V_shape=(N,K))
 
-def rms_error(pred_r, r):
-    n_samples = r.shape[0]
-    return np.sum((pred_r-r)**2) / n_samples
+# Run on validation set
+pred_rating = mh.predict(valid_user_id, valid_movie_id, U, V)
+pred_rating = mh.trim_pred(pred_rating)
+rms_error = mh.rms_err(pred_rating, valid_rating)
+print "validation error = %.15g" % rms_error
 
-# Trim predictions above 5.0 to be 5
-# and those below 1.0 to be just 1
-def trim_pred(pred_r):
-    rating = pred_r.copy()
-    below_one = rating < 1.0
-    rating[below_one] = 1.0
-    above_five = pred_r > 5.0
-    rating[above_five] = 5.0
-    return rating
+########################################
+#                                      #
+# Get probe error                      #
+# NOTE: validation error seems to be   #
+#       very low, whereas probe seems  #
+#       to be around the quiz error..  #
+#       Maybe use probe for choosing   #
+#       models?                        #
+########################################
 
-pred_rating = predict(qual_user_id, qual_movie_id, U, V)
-pred_rating = trim_pred(pred_rating)
-outfile = "qual" + suffix
-np.savetxt(outfile, pred_rating, fmt='%.3f')
+# Make probe
+probe_user_id, probe_movie_id, probe_data_id, probe_rating = \
+        reader.get_probe_umdr(user_id, movie_id, date_id, rating, data_idx)
+print "Number of samples for probe case: ", probe_user_id.shape
+
+# Load data in
+U, V = mh.load_um_data(suffix = "_K%d_reg%d.dat" % (K,reg), U_shape=(M,K), V_shape=(N,K))
+
+# Run on probeation set
+pred_rating = mh.predict(probe_user_id, probe_movie_id, U, V)
+pred_rating = mh.trim_pred(pred_rating)
+rms_error = mh.rms_err(pred_rating, probe_rating)
+print "probe error = %.15g" % rms_error
+
+########################################
+#                                      #
+# Make qual set                        #
+#                                      #
+########################################
+
+## Make qual set
+#qual_user_id, qual_movie_id, qual_data_id, qual_rating = \
+#        reader.get_qual_umdr(user_id, movie_id, date_id, rating, data_idx)
+#print "Number of samples for qual case: ", qual_user_id.shape
+#
+## Load data in
+#U, V = mh.load_um_data(suffix, U_shape=(M,K), V_shape=(N,K))
+#
+## Run on qual set
+#pred_rating = mh.predict(qual_user_id, qual_movie_id, U, V)
+#pred_rating = mh.trim_pred(pred_rating)
+#outfile = "qual" + suffix
+#np.savetxt(outfile, pred_rating, fmt='%.3f')
